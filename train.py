@@ -1,12 +1,3 @@
-"""
-Train ResNet-18 classifier on Waste Classification dataset (standalone, no 3LC).
-
-- Loads images from data/train/{class}/
-- 80/20 stratified per-class split
-- ResNet-18 random init (no pretrained weights)
-- Saves best_model.pth
-"""
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -22,48 +13,45 @@ import os
 
 EPOCHS = 1
 BATCH_SIZE = 16
-LEARNING_RATE = 0.0001
-RANDOM_SEED = 42
+LR = 0.0001
+SEED = 42
 NUM_CLASSES = 6
-CLASS_NAMES = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
+CLASSES = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
-print(f"ResNet-18: random init (no pretrained weights)")
+print(f"Using: {device}")
+print("ResNet-18 from scratch (no pretrained weights)")
 
-def set_seed(seed):
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        os.environ["PYTHONHASHSEED"] = str(seed)
-        print(f"[OK] Random seed set to {seed}")
+def seed_everything(s):
+    random.seed(s)
+    np.random.seed(s)
+    torch.manual_seed(s)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(s)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    os.environ["PYTHONHASHSEED"] = str(s)
 
 class ResNet18Classifier(nn.Module):
-    def __init__(self, num_classes=6):
-        super(ResNet18Classifier, self).__init__()
+    def __init__(self, n=6):
+        super().__init__()
         self.resnet = models.resnet18(weights=None)
-        resnet_features = self.resnet.fc.in_features
+        feat = self.resnet.fc.in_features
         self.resnet.fc = nn.Identity()
         self.classifier = nn.Sequential(
-            nn.Linear(resnet_features, 256),
+            nn.Linear(feat, 256),
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(128, num_classes),
+            nn.Linear(128, n),
         )
 
     def forward(self, x):
-        features = self.resnet(x)
-        return self.classifier(features)
+        return self.classifier(self.resnet(x))
 
-train_transform = transforms.Compose([
+train_tfm = transforms.Compose([
     transforms.Resize(224),
     transforms.RandomCrop(224),
     transforms.RandomHorizontalFlip(),
@@ -72,7 +60,8 @@ train_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
 ])
-val_transform = transforms.Compose([
+
+val_tfm = transforms.Compose([
     transforms.Resize(224),
     transforms.CenterCrop(224),
     transforms.ToTensor(),
@@ -88,96 +77,83 @@ class WasteDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        img_path, label = self.samples[idx]
-        image = Image.open(img_path).convert("RGB")
+        path, label = self.samples[idx]
+        img = Image.open(path).convert("RGB")
         if self.transform:
-            image = self.transform(image)
-        return image, label
+            img = self.transform(img)
+        return img, label
 
 def load_data(data_dir, val_split=0.2):
     data_dir = Path(data_dir)
-    all_samples = []
-    for class_idx, class_name in enumerate(CLASS_NAMES):
-        class_dir = data_dir / class_name
-        if not class_dir.exists():
-            continue
+    samples = []
+    for idx, cls in enumerate(CLASSES):
         for ext in ["*.jpg", "*.jpeg", "*.png"]:
-            for img_path in class_dir.glob(ext):
-                all_samples.append((str(img_path.resolve()), class_idx))
-    return all_samples
+            for f in (data_dir / cls).glob(ext):
+                samples.append((str(f.resolve()), idx))
+    return samples
 
 def train():
-    set_seed(RANDOM_SEED)
-    base_path = Path(__file__).parent
-    data_path = base_path / "data" / "train"
+    seed_everything(SEED)
+    base = Path(__file__).parent
 
-    print("\nLoading dataset...")
-    all_samples = load_data(data_path)
-    print(f"  Total samples: {len(all_samples)}")
-    for name in CLASS_NAMES:
-        count = sum(1 for _, l in all_samples if l == CLASS_NAMES.index(name))
-        print(f"    {name}: {count}")
+    print("\nLoading data...")
+    samples = load_data(base / "data" / "train")
+    print(f"  Total: {len(samples)}")
+    for cls in CLASSES:
+        cnt = sum(1 for _, l in samples if l == CLASSES.index(cls))
+        print(f"    {cls}: {cnt}")
 
-    random.shuffle(all_samples)
-    split_idx = int((1 - 0.2) * len(all_samples))
-    train_samples = all_samples[:split_idx]
-    val_samples = all_samples[split_idx:]
-    print(f"\n  Train: {len(train_samples)}  Val: {len(val_samples)}")
+    random.shuffle(samples)
+    split = int(0.8 * len(samples))
+    train_samps = samples[:split]
+    val_samps = samples[split:]
+    print(f"\n  Train: {len(train_samps)}  Val: {len(val_samps)}")
 
-    train_dataset = WasteDataset(train_samples, transform=train_transform)
-    val_dataset = WasteDataset(val_samples, transform=val_transform)
+    train_loader = DataLoader(WasteDataset(train_samps, train_tfm),
+                              batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
+    val_loader = DataLoader(WasteDataset(val_samps, val_tfm),
+                            batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-
-    model = ResNet18Classifier(num_classes=NUM_CLASSES).to(device)
+    model = ResNet18Classifier(NUM_CLASSES).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
-    best_val_accuracy = 0.0
-    best_model_state = None
-    print("\n" + "=" * 60)
-    print("  Starting Training")
-    print("=" * 60)
+    best_acc = 0.0
+    best_state = None
 
     for epoch in range(EPOCHS):
         model.train()
         running_loss = 0.0
-        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
+        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}"):
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, labels)
+            loss = criterion(model(images), labels)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
 
         model.eval()
-        val_correct, val_total = 0, 0
+        correct, total = 0, 0
         with torch.no_grad():
             for images, labels in val_loader:
                 images, labels = images.to(device), labels.to(device)
                 pred = model(images).argmax(1)
-                val_correct += (pred == labels).sum().item()
-                val_total += labels.size(0)
-        val_accuracy = 100 * val_correct / val_total
+                correct += (pred == labels).sum().item()
+                total += labels.size(0)
+        acc = 100 * correct / total
         scheduler.step()
-        print(f"Epoch {epoch+1}/{EPOCHS} - Loss: {running_loss:.4f} - Val Acc: {val_accuracy:.2f}%")
-        if val_accuracy > best_val_accuracy:
-            best_val_accuracy = val_accuracy
-            best_model_state = model.state_dict().copy()
-            print(f"  --> New best model!")
+        print(f"Epoch {epoch+1} - Loss: {running_loss:.4f} - Val Acc: {acc:.2f}%")
+        if acc > best_acc:
+            best_acc = acc
+            best_state = model.state_dict().copy()
+            print(f"  --> new best")
 
-    print("\n" + "=" * 60)
-    print(f"  Best validation accuracy: {best_val_accuracy:.2f}%")
-    print("=" * 60)
-
-    if best_model_state is not None:
-        model.load_state_dict(best_model_state)
-    model_path = base_path / "best_model.pth"
-    torch.save(model.state_dict(), model_path)
-    print(f"[OK] Best model saved to {model_path}")
+    print(f"\nBest val accuracy: {best_acc:.2f}%")
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    torch.save(model.state_dict(), base / "best_model.pth")
+    print("Saved best_model.pth")
 
 if __name__ == "__main__":
     train()

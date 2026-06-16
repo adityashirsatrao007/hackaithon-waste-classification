@@ -193,3 +193,36 @@ The goal is to understand:
 * How those issues can be fixed
 
 Good luck, Detective! 🔍♻️
+
+---
+
+## Results
+
+- **Audit script**: `inspect_dataset.py` — checks labels, duplicates, blur, imbalance, and outliers
+- **Findings**: `reports/findings.md` with evidence images in `reports/evidence/`
+- **Baseline accuracy**: 46.07% (ResNet-18, 1 epoch, on the buggy dataset)
+- **Predictions**: `submission.csv` (115 test images)
+
+### Issues Found
+
+| Problem | Count | Severity |
+|---------|-------|----------|
+| Mislabeled images | 318 / 445 (71.5%) | Critical |
+| Class imbalance | 2.15x (trash=40, paper=86) | Critical |
+| Blurry images | 157 | Moderate |
+| Exact duplicates | 6 groups | Moderate |
+| Near-duplicates | 11 pairs | Low |
+| File size outliers | 22 | Low |
+
+### How to Run
+
+```bash
+# dataset inspection
+python inspect_dataset.py
+
+# train baseline
+python train.py
+
+# generate submission
+python predict.py
+```
