@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Waste Classification — Data Audit Report</title>
+<style>
+body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1100px; margin: 2rem auto; padding: 1rem; background: #f8f9fa; color: #333; }
+h1 { color: #1a1a2e; border-bottom: 3px solid #e94560; padding-bottom: 8px; }
+h2 { color: #16213e; margin-top: 2rem; }
+img { max-width: 100%; border: 1px solid #ddd; border-radius: 8px; margin: 1rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.section { background: white; padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; }
+.critical { background: #ff4444; color: white; }
+.moderate { background: #ffa726; color: white; }
+.minor { background: #66bb6a; color: white; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #ddd; }
+th { background: #1a1a2e; color: white; }
+tr:hover { background: #f1f1f1; }
+</style>
+</head>
+<body>
+<h1>🗑️ Waste Classification — Data-Centric Audit Report</h1>
+<p><strong>Hack[AI]Thon 2.0 2026</strong> | Baseline: ResNet-18 (random init) | Validation Accuracy: <strong>46.07%</strong></p>
+
+<div class="section">
+<h2>🔍 Bug Summary</h2>
+<table>
+<tr><th>Issue</th><th>Count</th><th>Severity</th></tr>
+<tr><td>Class imbalance (trash=40, paper=86, ratio 2.15×)</td><td>40 vs 86</td><td><span class="badge critical">CRITICAL</span></td></tr>
+<tr><td>Mislabeled images (filename vs folder mismatch)</td><td>318 / 445 (71.5%)</td><td><span class="badge critical">CRITICAL</span></td></tr>
+<tr><td>Blurry images (Laplacian var < 100)</td><td>65</td><td><span class="badge moderate">MODERATE</span></td></tr>
+<tr><td>Exact duplicate images (same MD5)</td><td>25 groups</td><td><span class="badge moderate">MODERATE</span></td></tr>
+<tr><td>File size outliers</td><td>21</td><td><span class="badge minor">MINOR</span></td></tr>
+<tr><td>Corrupted images</td><td>0</td><td><span class="badge minor">NONE</span></td></tr>
+<tr><td>Low resolution (< 100px)</td><td>0</td><td><span class="badge minor">NONE</span></td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>📊 Class Distribution</h2>
+<p><strong>Imbalance ratio: 2.15×</strong> — trash class has only 40 images vs paper with 86.</p>
+<img src="class_distribution.png" alt="Class Distribution">
+</div>
+
+<div class="section">
+<h2>🏷️ Mislabel Analysis</h2>
+<p><strong>71.5% of training images are mislabeled.</strong> The filename convention <code>{true_label}_{random_id}.jpg</code> reveals the correct ground truth. The 3LC starter kit deliberately placed images in wrong folders to test data-centric AI skills.</p>
+<img src="mislabels.png" alt="Mislabels">
+<img src="mislabelled_examples.png" alt="Mislabeled Examples">
+</div>
+
+<div class="section">
+<h2>📸 Blurry Images</h2>
+<p><strong>65 images</strong> have Laplacian variance below 100, indicating significant blur.</p>
+<img src="blurry_examples.png" alt="Blurry Examples">
+</div>
+
+<div class="section">
+<h2>🔗 Duplicates</h2>
+<p><strong>25 duplicate groups</strong> found via MD5 hash — exact same pixels, different filenames, sometimes different labels.</p>
+</div>
+
+<div class="section">
+<h2>📈 Dataset Claims vs Reality</h2>
+<table>
+<tr><th>Claim</th><th>Website</th><th>Actual</th></tr>
+<tr><td>Training images</td><td>500 labeled + 100 unlabeled</td><td>445 labeled + 115 test (560 total)</td></tr>
+<tr><td>Correctly labeled</td><td>—</td><td>127 / 445 (28.5%)</td></tr>
+<tr><td>Balanced classes</td><td>Yes</td><td>No (ratio 2.15×)</td></tr>
+<tr><td>No duplicates</td><td>—</td><td>25 duplicate groups</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>✅ Recommended Fixes</h2>
+<ol>
+<li><strong>Relabel by filename</strong> — use <code>{true_label}</code> prefix from the filename to assign correct class</li>
+<li><strong>Remove duplicates</strong> — deduplicate by MD5 hash, keep one copy per group</li>
+<li><strong>Remove or sharpen blurry</strong> — discard images with Laplacian var < 100 or apply sharpening</li>
+<li><strong>Augment trash class</strong> — oversample or apply aggressive augmentation to balance classes</li>
+<li><strong>Cross-validation</strong> — use stratified k-fold to mitigate imbalance during training</li>
+</ol>
+</div>
+</body>
+</html>

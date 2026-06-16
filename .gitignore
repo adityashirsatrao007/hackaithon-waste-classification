@@ -1,39 +1,7 @@
-# Data
-data/raw/*
-data/processed/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Environment
-.env
 venv/
-.venv/
-
-# ML artifacts
-*.pth
-*.pt
-*.h5
-*.onnx
-mlruns/
-wandb/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
+__pycache__/
+*.pyc
 .DS_Store
-Thumbs.db
-
-# Logs
-*.log
+best_model.pth
+reports/audit_results.json
+reports/*.png
