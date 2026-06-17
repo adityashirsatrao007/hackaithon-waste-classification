@@ -1,4 +1,5 @@
 # Python
+.venv/
 venv/
 __pycache__/
 *.pyc
@@ -7,12 +8,8 @@ __pycache__/
 # Model checkpoints (45+ MB each)
 *.pth
 
-# Generated data
-reports/evidence/
-reports/figures/
-reports/findings.json
+# Agent artifacts
+.agent-progress.md
 
-# Intermediate submissions
-submissions/submission_cl.csv
-submissions/submission_clean.csv
-submissions/submission_improved.csv
+# Training outputs
+self_training_output/

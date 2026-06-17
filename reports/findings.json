@@ -1,0 +1,32 @@
+{
+  "total": 445,
+  "class_counts": {
+    "cardboard": 82,
+    "glass": 78,
+    "metal": 84,
+    "paper": 86,
+    "plastic": 75,
+    "trash": 40
+  },
+  "imbalance_ratio": 2.15,
+  "mislabeled_count": 318,
+  "mislabeled_pct": 71.46067415730337,
+  "correct_count": 127,
+  "dup_groups": 6,
+  "near_dup_pairs": 11,
+  "blurry_count": 157,
+  "blurry_stats": {
+    "min_var": 0.572158812208929,
+    "mean_var": 48.54080055537832
+  },
+  "corrupted": 0,
+  "low_res": 0,
+  "outlier_count": 22,
+  "size_stats": {
+    "q1": 11712,
+    "q3": 20111,
+    "iqr": 8399,
+    "min": 4770,
+    "max": 43213
+  }
+}
