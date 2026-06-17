@@ -1,62 +1,46 @@
 # Waste Classification — Data Detective Challenge
 
-Submission for Hack[AI]Thon 2.0 Online Selection Round. Clean, train,
-and evaluate a waste classifier on a dataset with 71.5% label noise.
+Submission for Hack[AI]Thon 2.0 Online Selection Round (Round 1).
+
+## Deliverables
+
+- `reports/Round1_Data_Detective.pptx` — 5-slide PPT
+- `reports/Round1_Data_Detective.pdf` — 3-page PDF
+- `submissions/submission.csv` — test set predictions
+
+## Key Findings
+
+| Issue | Impact |
+|-------|--------|
+| 71.5% label noise | Model learns folder bias, not visual features |
+| 35.3% blurry images | Significant noise in training data |
+| 2.15× class imbalance | Trash class at 0% recall |
+| 6 duplicate groups + 11 near-duplicates | Train/val leakage |
 
 ## Quick Start
 
 ```bash
 pip install -r requirements.txt
-bash scripts/run_all.sh          # full pipeline
+python register.py   # register dataset with 3LC
+python train.py      # train ResNet-18 baseline
+python predict.py    # generate submission.csv
 ```
 
 ## Project Layout
 
 ```
-├── src/              reusable library (import as `from src import ...`)
-│   ├── model.py      WasteClassifier (ResNet-18)
-│   ├── dataset.py    datasets, transforms, loading, dedup, relabel
-│   ├── trainer.py    training loops, cross-validation
-│   ├── analysis.py   data quality inspection, confident learning
-│   ├── visualization.py  plotting utilities
-│   └── predictor.py  TestDataset + inference
-├── scripts/          entry-point scripts
-│   ├── inspect_dataset.py        audit for mislabels, blur, dupes
-│   ├── train_baseline.py         ResNet-18 on raw folder labels
-│   ├── train_improved.py         relabel + dedup + weights + smoothing
-│   ├── train_confident_learning.py  3-fold CV + CleanLab correction
-│   ├── clean_data.py             compare folder vs filename labels
-│   ├── predict.py                generate submission CSV
-│   ├── visualize.py              confusion matrix, UMAP, confidence
-│   └── run_all.sh                full pipeline
-├── configs/
-│   └── config.yaml               training configuration
+├── train.py           baseline training (ResNet-18)
+├── predict.py         inference → submission.csv
+├── register.py        3LC dataset registration
+├── requirements.txt
+├── data/
+│   ├── train/         445 images, 6 class folders
+│   └── test/          115 test images
 ├── reports/
-│   ├── index.md                  consolidated findings
-│   ├── data_audit.md             per-class metrics
-│   └── experiments/              per-experiment results
-├── data/                         (not included) train/test images
-├── models/                       (gitignored) .pth checkpoints
-├── submissions/                  prediction CSVs
-├── notebooks/
-├── pyproject.toml
-└── requirements.txt
+│   ├── Round1_Data_Detective.pptx
+│   ├── Round1_Data_Detective.pdf
+│   ├── figures/       confusion matrix, UMAP, confidence hist
+│   └── evidence/      mislabeled & blurry examples
+└── submissions/
+    └── submission.csv
 ```
-
-## Key Findings
-
-| Problem | Impact |
-|---------|--------|
-| 71.5% label noise | Both folder and filename labels unreliable |
-| 49.43% baseline | Best model trains on noisy folder labels directly |
-| Confident learning | Corrects only 29/445 labels; matches baseline |
-| Self-training | Next step — needs dataset to run |
-
-## Experiments
-
-| Experiment | Val Acc |
-|------------|---------|
-| Baseline (folder labels) | 49.43% |
-| Relabel (filename prefix) | 21.84% |
-| All 6 fixes + relabel | 24.14% |
-| Confident Learning | 47.19% |
