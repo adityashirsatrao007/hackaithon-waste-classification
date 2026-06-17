@@ -2,7 +2,6 @@
 Check the waste classification dataset for common data quality issues.
 Saves findings to reports/findings.md with supporting evidence.
 """
-
 import json
 import hashlib
 from pathlib import Path
@@ -11,11 +10,11 @@ from PIL import Image
 import cv2
 import numpy as np
 
-DATA_DIR = Path("data/train")
-REPORTS_DIR = Path("reports")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data" / "train"
+REPORTS_DIR = PROJECT_ROOT / "reports"
 EVIDENCE_DIR = REPORTS_DIR / "evidence"
 CLASSES = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
-CLASS_MAP = {c: i for i, c in enumerate(CLASSES)}
 
 REPORTS_DIR.mkdir(exist_ok=True)
 EVIDENCE_DIR.mkdir(exist_ok=True)
@@ -106,7 +105,10 @@ def outlier_detection(images):
     iqr = q3 - q1
     lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
     outliers = [s for s in sizes if s[1] < lower or s[1] > upper]
-    return outliers, {"q1": int(q1), "q3": int(q3), "iqr": int(iqr), "min": int(vals.min()), "max": int(vals.max())}
+    return outliers, {
+        "q1": int(q1), "q3": int(q3), "iqr": int(iqr),
+        "min": int(vals.min()), "max": int(vals.max()),
+    }
 
 def save_evidence_mislabels(mislabeled, n=12):
     print(f"  saving {n} example mislabeled images...")
@@ -140,8 +142,6 @@ Classes: {', '.join(CLASSES)}
     for cls in CLASSES:
         report += f"| {cls} | {stats['class_counts'][cls]} |\n"
     report += f"\nImbalance ratio: {stats['imbalance_ratio']:.2f}x\n"
-    if stats['imbalance_ratio'] > 1.5:
-        report += "**Impact**: The trash class has significantly fewer samples. The model will struggle to learn this category.\n"
 
     report += f"""
 ## 2. Label Errors
@@ -149,7 +149,6 @@ Mislabeled images: {stats['mislabeled_count']} / {stats['total']} ({stats['misla
 Correctly labeled: {stats['correct_count']}
 
 The filename pattern `{{true_label}}_random_id.jpg` reveals the actual class.
-Evidence images saved to `reports/evidence/` with filenames showing folder vs actual label.
 
 ## 3. Duplicate Images
 Exact duplicate groups found: {stats['dup_groups']}
@@ -192,14 +191,10 @@ def main():
     correct_count = len(correct)
 
     dup_groups = check_duplicates(images)
-
     near_dup_pairs = check_near_duplicates(images)
-
     blurry = check_blurry(images)
     blurry_vals = [b[1] for b in blurry]
-
     size_issues = check_dims_and_corruption(images)
-
     outliers, size_stats = outlier_detection(images)
 
     print("\nSaving evidence...")

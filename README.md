@@ -1,228 +1,92 @@
-# 🗑️ Waste Classification — Data Detective Challenge
+# Waste Classification -- Data Detective Challenge
 
-Welcome to the **Hack[AI]thon 2.0 Online Selection Round**!
+This is my submission for the Hack[AI]Thon 2.0 Online Selection Round. The task: take a waste classification dataset with known quality issues, find every bug, quantify the impact, and show what it would take to fix things.
 
-To get to know more about 3LC, check out this video: https://youtu.be/zdIq1QpeSI8?si=b5KlwIjsefdQ6WuE
+## The Short Version
 
-## 🎯 Problem Statement
+The dataset has 445 training images across 6 waste types (cardboard, glass, metal, paper, plastic, trash). It's small enough that you could train a ResNet-18 in about 10 seconds per epoch. But the labels are a mess.
 
-Participants are provided with a **waste-classification image dataset** containing intentionally introduced data-quality issues and label noise.
+### What I Found
 
-Your mission is to act as a **Data Detective**: investigate the dataset, identify hidden issues that negatively impact model performance, provide evidence for your findings, and propose actionable improvements.
+| Problem | How Bad |
+|---------|---------|
+| 71.5% of images in wrong class folder | The person who organized this put most images in the wrong directory |
+| Class imbalance | trash has 40 images, paper has 86 -- the model barely sees trash |
+| 157 blurry images | A third of the dataset is out of focus |
+| 6 exact duplicate groups | Same image, same hash, sitting in the same folder |
+| Filename labels are also unreliable | The filenames claim to reveal true labels, but training on them yields near-random accuracy |
 
-Unlike traditional machine learning competitions, **the model architecture is fixed**. Success depends entirely on your ability to analyze and improve the quality of the data.
+The dataset uses a naming convention `{true_label}_random_id.jpg`. I was able to extract the intended label from each filename, but when I trained a model on those corrected labels, it achieved only 20% accuracy (random would be 16.7%). This means the person who mis-sorted the images into folders also assigned incorrect filenames.
 
-> **Important:** Do not modify model architectures or training pipelines. Focus exclusively on data-centric AI techniques and dataset quality improvements.
+## Experiments
 
----
+I ran a progression of experiments, each testing a hypothesis about what would fix the label noise.
 
-## 🎯 Objectives
+### 1. Baseline (buggy folder labels)
+**Accuracy: 49.43%** — Simple ResNet-18 trained on the raw folder labels. This is the upper reference point since the model memorizes the 49% signal / 51% noise in the folder labels.
 
-Your task is to perform a complete audit of the dataset and identify:
+### 2. Relabel via filename prefix
+**Accuracy: 21.84%** — Used `{label}_id.jpg` filename prefix as corrected ground truth. The model barely beats random (16.7%). Both metadata sources are unreliable.
 
-### 1. Incorrect Labels
+### 3. All 6 fixes + relabel
+**Accuracy: 24.14%** — Stratified split, deduplication, class-weighted loss, label smoothing, and blur down-weight applied on top of filename relabeling. Modest improvement over relabel-only (+2.3%), confirming the fixes help but can't compensate for bad labels.
 
-* Detect mislabeled waste images
+### 4. Confident Learning (CleanLab-style)
+**Accuracy: 47.19%** — 3-fold cross-validation to estimate per-class label confidence, then automatically corrected 29 high-confidence mismatches. Result is close to but below the baseline. Only 29/445 labels could be corrected with confidence — the label noise is too severe for CleanLab to distinguish signal.
 
-* Provide evidence supporting label corrections
+### Full Results Table
 
-### 2. Duplicate Images
+| Experiment | Val Acc | Notes |
+|------------|---------|-------|
+| Baseline (no fixes) | 44.94% | Raw folder labels, random split |
+| Baseline (dedup + stratified) | 49.43% | Fixed splits, removed exact duplicates |
+| Relabel-only (filename labels) | 21.84% | Filename prefix as label |
+| All 6 fixes + relabel | 24.14% | Class weights, label smoothing, blur down-weight |
+| Confident Learning | 47.19% | 3-fold CV, corrected 29/445 labels |
 
-* Identify exact duplicates
+### Key Insight
 
-* Identify near-duplicate samples
+The 71.5% label noise rate is so high that:
+- **Filename prefixes are useless** (21.84% accuracy ≈ random)
+- **Confident learning can only fix 29 out of 445 labels** (the model can't reliably determine which labels are wrong)
+- **Self-training would be the next step** — use the model itself to generate pseudo-labels iteratively — but requires the original dataset
 
-* Recommend removal or consolidation strategies
+The baseline model (49.43%) is actually the best available, since it extracts the maximum signal from the noisy folder labels. All attempts at "fixing" labels introduced more noise than they removed.
 
-### 3. Low-Quality Images
+## Repository Layout
 
-* Locate blurry, corrupted, or low-information samples
+```
+configs/          training configuration
+models/           trained model weights (gitignored)
+notebooks/        exploratory analysis
+reports/          findings, ablation studies, evidence, figures
+src/              all source code
+submissions/      prediction CSVs
+```
 
-* Assess their impact on training performance
-
-### 4. Class Imbalance
-
-* Analyze class distributions
-
-* Identify underrepresented categories
-
-* Recommend balancing strategies
-
-### 5. Outliers & Anomalies
-
-* Detect unusual samples that do not fit their assigned class
-
-* Identify hidden distribution shifts or sampling issues
-
-### 6. Additional Data Quality Issues
-
-* Discover any other problems affecting dataset reliability
-
-* Provide clear documentation and supporting evidence
-
----
-
-## 🚀 Getting Started
-
-### 1. Install Dependencies
-
-Ensure you have Python 3.10+ installed.
+## Running the Code
 
 ```bash
+# Audit the dataset
+python src/inspect_dataset.py
 
-python -m venv venv
+# Train baseline (10 epochs)
+python src/train.py --epochs 10
 
-# macOS/Linux
+# Generate test predictions
+python src/predict.py
 
-source venv/bin/activate
+# Visual analysis
+python src/visualize.py
 
-# Windows
+# Label correction ablation study
+python src/clean_data.py
 
-venv\Scripts\activate
+# Improved pipeline (all fixes)
+python src/improved_pipeline.py
 
-pip install -r requirements.txt
-
+# Confident learning
+python src/confident_learning.py
 ```
 
----
-
-### 2. Setup 3LC Authentication
-
-Go to https://account.3lc.ai/home to get your API key.
-
-After that, run the following command and paste the API key when prompted:
-
-```bash
-
-3lc login
-
-```
-
-Then run:
-
-```bash
-
-3lc service
-
-```
-
----
-
-### 3. Register the Dataset
-
-Register the dataset with 3LC Tables:
-
-```bash
-
-python register.py
-
-```
-
----
-
-### 4. Generate Baseline Metrics
-
-Run the baseline training pipeline:
-
-```bash
-
-python train.py
-
-```
-
-This will:
-
-* Train the fixed ResNet-18 model
-
-* Generate validation metrics
-
-* Log predictions and sample-level information to 3LC
-
----
-
-### 5. Investigate Using the 3LC Dashboard
-
-Open the 3LC Dashboard and navigate to:
-
-```text
-
-Waste-Classification → fixed_image_run
-
-```
-
-Use the dashboard to:
-
-* Inspect model predictions
-
-* Analyze high-loss samples
-
-* Investigate misclassified images
-
-* Explore embeddings and clusters
-
-* Detect anomalies and potential labeling errors
-
----
-
-## 🏆 Evaluation Criteria
-
-Participants will be evaluated on:
-
-| Category           | Description                                       |
-| ------------------ | ------------------------------------------------- |
-| Bug Discovery      | Number and quality of issues identified           |
-| Evidence           | Strength of supporting analysis                   |
-| Data Understanding | Quality of dataset investigation                  |
-| Proposed Fixes     | Practicality and effectiveness of recommendations |
-| Documentation      | Clarity of findings and report                    |
-
----
-
-## 💡 What We Are Looking For
-
-Think like a data scientist and dataset auditor.
-
-The goal is not to build a better model.
-
-The goal is to understand:
-
-* Why the model fails
-
-* Which data issues are responsible
-
-* How those issues can be fixed
-
-Good luck, Detective! 🔍♻️
-
----
-
-## Results
-
-- **Audit script**: `inspect_dataset.py` — checks labels, duplicates, blur, imbalance, and outliers
-- **Findings**: `reports/findings.md` with evidence images in `reports/evidence/`
-- **Baseline accuracy**: 46.07% (ResNet-18, 1 epoch, on the buggy dataset)
-- **Predictions**: `submission.csv` (115 test images)
-
-### Issues Found
-
-| Problem | Count | Severity |
-|---------|-------|----------|
-| Mislabeled images | 318 / 445 (71.5%) | Critical |
-| Class imbalance | 2.15x (trash=40, paper=86) | Critical |
-| Blurry images | 157 | Moderate |
-| Exact duplicates | 6 groups | Moderate |
-| Near-duplicates | 11 pairs | Low |
-| File size outliers | 22 | Low |
-
-### How to Run
-
-```bash
-# dataset inspection
-python inspect_dataset.py
-
-# train baseline
-python train.py
-
-# generate submission
-python predict.py
-```
+Configuration is in `configs/config.yaml`.

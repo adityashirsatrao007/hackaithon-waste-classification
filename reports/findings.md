@@ -1,48 +1,54 @@
-# Waste Classification - Data Quality Findings
+# Data Quality Findings & Experiments
 
-## Overview
-Total training images: 445
-Classes: cardboard, glass, metal, paper, plastic, trash
+## Dataset Overview
+- **445 training images**, 6 classes
+- Folder labels: 71.5% mislabeled (318/445)
+- Filename prefix labels: also unreliable (21.84% model accuracy)
 
-## 1. Class Distribution
+## Class Distribution
 | Class | Count |
 |-------|-------|
+| paper | 86 |
+| metal | 84 |
 | cardboard | 82 |
 | glass | 78 |
-| metal | 84 |
-| paper | 86 |
 | plastic | 75 |
 | trash | 40 |
 
 Imbalance ratio: 2.15x
-**Impact**: The trash class has significantly fewer samples. The model will struggle to learn this category.
 
-## 2. Label Errors
-Mislabeled images: 318 / 445 (71.5%)
-Correctly labeled: 127
+## Quality Issues Detected
+| Issue | Value |
+|-------|-------|
+| Mislabeled (folder vs filename) | 318 / 445 (71.5%) |
+| Blurry images (var < 100) | 157 (35.3%) |
+| Exact duplicate groups | 6 |
+| Near-duplicate pairs | 11 |
+| File size outliers | 22 |
+| Corrupted images | 0 |
 
-The filename pattern `{true_label}_random_id.jpg` reveals the actual class.
-Evidence images saved to `reports/evidence/` with filenames showing folder vs actual label.
+## Experiments
 
-## 3. Duplicate Images
-Exact duplicate groups found: 6
-Near-duplicate pairs found: 11
+### Experiment 1: Baseline
+ResNet-18 from scratch, 10 epochs, folder labels.
+- **Best val acc: 44.94%** → later improved to **49.43%** with dedup+stratified split
 
-## 4. Image Quality
-Blurry images (Laplacian variance < 100): 157
-- Min variance: 0.6
-- Mean variance: 48.5
+### Experiment 2: Relabel via filename
+Same architecture, filename-prefix labels.
+- **Best val acc: 20.22-21.84%** — essentially random (16.7%)
+- Loss stuck at ~1.78 (random = 1.79)
+- Filename prefixes are NOT reliable ground truth
 
-Corrupted images: 0
-Low resolution images (< 100px): 0
+### Experiment 3: All 6 fixes + relabel
+Stratified split, dedup, class weights, label smoothing (0.1), blur down-weight.
+- **Best val acc: 24.14%** — +2.3% over relabel-only
+- Fixes help but can't compensate for bad labels
 
-## 5. Outliers
-File size outliers: 22
-Size range: 4770 bytes - 43213 bytes
+### Experiment 4: Confident Learning
+3-fold CV, CleanLab-style per-class thresholding.
+- **OOF accuracy on original labels: 9.89%** (confirms severe label noise)
+- Only 29/445 labels corrected with high confidence
+- **Retrain on corrected labels: 47.19%** — close to but below baseline
 
-## 6. Recommended Fixes
-1. Relabel images using the prefix in each filename
-2. Remove exact duplicate images (keep one copy per group)
-3. Remove or flag blurry images for the organizers
-4. Augment the trash class to balance the dataset
-5. Use stratified sampling during training to handle imbalance
+## Conclusion
+The 71.5% label noise rate is too high for any single technique to fix. Both metadata sources (folders and filenames) are unreliable. The model trained on noisy folder labels (49.43%) is the best available — it extracts the maximum usable signal. Next steps: iterative pseudo-labeling with self-training.

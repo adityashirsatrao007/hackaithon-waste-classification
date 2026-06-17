@@ -2,6 +2,10 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
-best_model.pth
+*.pth
 reports/evidence/
+reports/figures/
 reports/findings.json
+submissions/submission_cl.csv
+submissions/submission_clean.csv
+submissions/submission_improved.csv
