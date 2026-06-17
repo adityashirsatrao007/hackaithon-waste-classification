@@ -109,9 +109,26 @@ def main():
     train_loader = DataLoader(train_ds, BATCH_SIZE, sampler=sampler, num_workers=0)
     val_loader = DataLoader(val_ds, BATCH_SIZE, num_workers=0)
 
-    model = models.resnet18(weights=None)
-    model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES)
-    model = model.to(DEVICE)
+    class ResNet18Classifier(nn.Module):
+        def __init__(self, num_classes=NUM_CLASSES):
+            super().__init__()
+            self.resnet = models.resnet18(weights=None)
+            resnet_features = self.resnet.fc.in_features
+            self.resnet.fc = nn.Identity()
+            self.classifier = nn.Sequential(
+                nn.Linear(resnet_features, 256),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(256, 128),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(128, num_classes),
+            )
+        def forward(self, x):
+            features = self.resnet(x)
+            return self.classifier(features)
+
+    model = ResNet18Classifier().to(DEVICE)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LR)

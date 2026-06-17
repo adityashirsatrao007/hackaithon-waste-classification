@@ -38,7 +38,7 @@ print(f"Using device: {device}")
 
 class ResNet18Classifier(nn.Module):
     def __init__(self, num_classes=6):
-        super(ResNet18Classifier, self).__init__()
+        super().__init__()
         self.resnet = models.resnet18(weights=None)
         resnet_features = self.resnet.fc.in_features
         self.resnet.fc = nn.Identity()
@@ -53,7 +53,8 @@ class ResNet18Classifier(nn.Module):
         )
 
     def forward(self, x):
-        return self.classifier(self.resnet(x))
+        features = self.resnet(x)
+        return self.classifier(features)
 
 # ============================================================================
 # DATASET
@@ -95,7 +96,7 @@ class TestDataset(Dataset):
 # ============================================================================
 
 test_transform = transforms.Compose([
-    transforms.Resize(IMAGE_SIZE),
+    transforms.Resize(IMAGE_SIZE + 32),
     transforms.CenterCrop(IMAGE_SIZE),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
