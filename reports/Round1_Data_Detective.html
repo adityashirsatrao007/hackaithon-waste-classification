@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Waste Classification — Data Detective Report</title>
+<style>
+  @page { margin: 0.75in; size: A4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Calibri, sans-serif; font-size: 11pt; line-height: 1.5; color: #1a1a2e; padding: 0.5in; max-width: 210mm; margin: auto; }
+  h1 { font-size: 20pt; color: #1a1a2e; border-bottom: 3px solid #00d2ff; padding-bottom: 6px; margin-bottom: 6px; }
+  h2 { font-size: 14pt; color: #1a1a2e; margin-top: 18px; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+  h3 { font-size: 12pt; color: #444; margin-top: 12px; margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt; }
+  th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+  th { background: #1a1a2e; color: white; }
+  tr:nth-child(even) { background: #f5f5f5; }
+  ul { margin: 6px 0 6px 20px; }
+  li { margin-bottom: 3px; }
+  .page-break { page-break-before: always; }
+  .subtitle { color: #666; font-size: 12pt; margin-bottom: 12px; }
+  .highlight { background: #e8f8ff; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+  .metric-box { display: inline-block; background: #1a1a2e; color: white; padding: 4px 10px; border-radius: 4px; margin: 2px; font-size: 10pt; }
+</style></head>
+<body>
+
+<h1>Waste Classification — Data Detective Report</h1>
+<div class="subtitle">Hack[AI]Thon 2.0 · Round 1 · Online Screening | Team: [Your Team Name] | July 2026</div>
+
+<h2>1. Dataset Overview</h2>
+<table>
+<tr><th>Attribute</th><th>Value</th></tr>
+<tr><td>Training images</td><td>445</td></tr>
+<tr><td>Test images</td><td>115</td></tr>
+<tr><td>Classes</td><td>cardboard, glass, metal, paper, plastic, trash</td></tr>
+<tr><td>Baseline model</td><td>ResNet-18 (fixed, not modified)</td></tr>
+<tr><td>Baseline accuracy</td><td><span class="highlight">42.53%</span> (random = 16.7%)</td></tr>
+</table>
+
+<h3>Class Distribution</h3>
+<table>
+<tr><th>Class</th><th>Count</th><th>Proportion</th></tr>
+<tr><td>cardboard</td><td>82</td><td>18.4%</td></tr>
+<tr><td>glass</td><td>78</td><td>17.5%</td></tr>
+<tr><td>metal</td><td>84</td><td>18.9%</td></tr>
+<tr><td>paper</td><td>86</td><td>19.3%</td></tr>
+<tr><td>plastic</td><td>75</td><td>16.9%</td></tr>
+<tr><td>trash</td><td>40</td><td>9.0%</td></tr>
+</table>
+<p>Imbalance ratio: <span class="highlight">2.15×</span> (trash most underrepresented)</p>
+
+<div class="page-break"></div>
+
+<h2>2. Problems Found</h2>
+
+<h3>2.1 Wrong Labels — 71.5% (318/445)</h3>
+<p>The majority of images are stored in incorrect class folders. Folder labels and filename-prefix labels disagree on most samples. The model learns <strong>folder bias</strong> (predicts "cardboard" for everything) rather than learning visual features of waste materials.</p>
+
+<h3>2.2 Duplicate Images</h3>
+<ul>
+<li><strong>6 exact duplicate groups</strong> — same image in multiple folders with different labels</li>
+<li><strong>11 near-duplicate pairs</strong> — visually similar images with minor variations</li>
+<li>Causes train/validation leakage and inflated class counts</li>
+</ul>
+
+<h3>2.3 Blurry / Low-Quality Images</h3>
+<ul>
+<li><strong>157 images (35.3%)</strong> have Laplacian variance &lt; 100</li>
+<li>Minimum variance: <strong>0.6</strong> (effectively blank)</li>
+<li>These images contribute noise instead of signal</li>
+</ul>
+
+<h3>2.4 Class Imbalance</h3>
+<ul>
+<li><strong>trash</strong> class has only <strong>40 samples</strong> vs 82–86 for others</li>
+<li>Model: <strong>0% precision, 0% recall, 0% F1</strong> on trash — class effectively invisible to the model</li>
+</ul>
+
+<h3>2.5 Outliers</h3>
+<ul>
+<li><strong>22 file-size outliers</strong> detected (range: 4.7 KB – 43 KB)</li>
+<li>Potential corrupted or anomalous samples</li>
+</ul>
+
+<h2>3. Evidence</h2>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Overall validation accuracy</td><td>42.53%</td></tr>
+<tr><td>Precision range</td><td>0.00 (trash) – 0.80 (cardboard)</td></tr>
+<tr><td>Recall range</td><td>0.00 (trash) – 0.72 (cardboard)</td></tr>
+<tr><td>Mislabeled images</td><td>318 (71.5%)</td></tr>
+<tr><td>Blurry images</td><td>157 (35.3%)</td></tr>
+<tr><td>Duplicate groups</td><td>6 exact + 11 near-duplicate</td></tr>
+</table>
+
+<p><strong>Key insight:</strong> Confusion matrix shows the model overwhelmingly predicts "cardboard" for all classes — evidence of <strong>folder bias</strong>. UMAP embeddings confirm no clean cluster separation by true class.</p>
+
+<p>Evidence images available: 12 mislabel examples, 12 blurry examples, confusion matrix, UMAP plots, confidence histogram.</p>
+
+<div class="page-break"></div>
+
+<h2>4. Suggested Fixes</h2>
+<table>
+<tr><th>Fix</th><th>Description</th><th>Expected Impact</th><th>Effort</th></tr>
+<tr><td>1. Correct labels</td><td>Use filename-prefix labels + human review for ambiguous cases</td><td>+10–15% accuracy</td><td>High</td></tr>
+<tr><td>2. Remove duplicates</td><td>Deduplicate exact + near-duplicate pairs</td><td>+3–5% accuracy</td><td>Low</td></tr>
+<tr><td>3. Handle blurry images</td><td>Down-weight or remove low-quality samples</td><td>+2–3% accuracy</td><td>Low</td></tr>
+<tr><td>4. Balance classes</td><td>Oversample/augment trash class</td><td>+5–8% trash recall</td><td>Medium</td></tr>
+<tr><td>5. Stratified splits</td><td>Stratified sampling for train/val splits</td><td>Prevents leakage</td><td>Low</td></tr>
+<tr><td>6. Self-training</td><td>Iterative pseudo-labeling with confidence threshold</td><td>+5–10% additional</td><td>Medium</td></tr>
+</table>
+
+<h2>5. Expected Impact</h2>
+
+<h3>Primary Impact</h3>
+<ul>
+<li><strong>Label correction</strong> alone: +10–15 percentage points by removing dominant noise source</li>
+<li><strong>Class balancing</strong>: trash recall from <strong>0% → ~30–40%</strong></li>
+</ul>
+
+<h3>Secondary Impact</h3>
+<ul>
+<li><strong>Deduplication</strong>: honest evaluation without data leakage</li>
+<li><strong>Blurry handling</strong>: clean bottom 35% of dataset</li>
+</ul>
+
+<h3>Projected Combined Improvement</h3>
+<p><span class="metric-box">Baseline: 42.53%</span> <span style="font-size:18px;">→</span> <span class="metric-box" style="background:#00a86b;">Target: 60–70%</span></p>
+
+<h3>Recommendation</h3>
+<p>71.5% label noise is too severe for fully automated correction (Confident Learning only fixed 24/445 labels). <strong>Human-in-the-loop verification</strong> of ambiguous samples is essential. Remaining corrections via <strong>self-training loop</strong>: predict → filter confident (p &gt; 0.6) → relabel → retrain.</p>
+
+<p style="color:#999; font-size:9pt; margin-top:30px;">Evidence: confusion matrix, UMAP embeddings, example images available in reports/figures/ and reports/evidence/</p>
+
+</body>
+</html>
